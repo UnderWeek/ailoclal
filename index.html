@@ -13,15 +13,14 @@
         :root { --accent: #10a37f; --bg: #050505; }
         body { background-color: var(--bg); color: #e5e5e5; font-family: -apple-system, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
         .glass-header { background: rgba(5, 5, 5, 0.85); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-bottom: 1px solid #222; }
-        .chat-bubble-user { background: #222; border-radius: 20px 20px 4px 20px; padding: 12px 16px; align-self: flex-end; max-width: 85%; margin-left: auto; color: white; }
+        .chat-bubble-user { background: #222; border-radius: 20px 20px 4px 20px; padding: 12px 16px; align-self: flex-end; max-width: 85%; margin-left: auto; color: white; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
         .chat-bubble-ai { border-bottom: 1px solid #111; padding: 24px 8px; width: 100%; }
         pre { background: #000 !important; border-radius: 12px; padding: 14px; margin: 12px 0; border: 1px solid #333; overflow-x: auto; }
         code { font-family: 'SF Mono', monospace; font-size: 0.85em; }
         select { background: #111; border: 1px solid #333; color: white; border-radius: 12px; padding: 10px; width: 100%; outline: none; appearance: none; font-size: 14px; }
-        .welcome-screen { backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px); background: rgba(0,0,0,0.9); }
+        .welcome-screen { backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px); background: rgba(0,0,0,0.95); }
         ::-webkit-scrollbar { width: 0; }
-        .loading-dots::after { content: '...'; animation: dots 1.5s steps(5, end) infinite; }
-        @keyframes dots { 0%, 20% { content: '.'; } 40% { content: '..'; } 60% { content: '...'; } }
+        .dot-status { transition: all 0.3s ease; }
     </style>
 </head>
 <body class="flex flex-col h-screen overflow-hidden">
@@ -29,9 +28,9 @@
     <div id="setupOverlay" class="hidden fixed inset-0 z-[100] welcome-screen flex items-center justify-center p-6">
         <div class="bg-[#111] w-full max-w-sm rounded-[32px] p-8 border border-[#333] shadow-2xl">
             <h2 class="text-3xl font-bold mb-2 tracking-tight">AI HUB <span class="text-[#10a37f]">192</span></h2>
-            <p class="text-gray-400 text-sm mb-8">Введите ваш API ключ (начинается на <code class="text-white">llmg-</code> или <code class="text-white">sk-</code>).</p>
+            <p class="text-gray-400 text-sm mb-8">Введите ваш API ключ (начинается на <code class="text-white">llmg-</code>).</p>
             <input type="password" id="initialApiKey" placeholder="llmg-..." class="w-full p-4 bg-black rounded-2xl border border-[#333] mb-4 outline-none focus:border-[#10a37f] text-white">
-            <button onclick="firstTimeSave()" class="w-full bg-[#10a37f] p-4 rounded-2xl font-bold text-white active:scale-95 transition shadow-lg shadow-[#10a37f]/20">Начать работу</button>
+            <button onclick="firstTimeSave()" class="w-full bg-[#10a37f] p-4 rounded-2xl font-bold text-white active:scale-95 transition shadow-lg">Запустить</button>
         </div>
     </div>
 
@@ -39,11 +38,11 @@
         <div class="max-w-4xl mx-auto space-y-3">
             <div class="flex justify-between items-center">
                 <div class="flex items-center gap-2">
-                    <div id="statusDot" class="w-2 h-2 rounded-full bg-[#10a37f]"></div>
-                    <span class="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">LLMAPI CLOUD</span>
+                    <div id="statusDot" class="w-2.5 h-2.5 rounded-full bg-[#10a37f] dot-status"></div>
+                    <span id="statusText" class="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">Ready</span>
                 </div>
                 <div class="flex gap-3">
-                    <button onclick="clearHistory()" class="text-[10px] font-bold text-red-500 uppercase border border-red-500/20 px-2 py-1 rounded">Reset Chat</button>
+                    <button onclick="clearHistory()" class="text-[10px] font-bold text-red-500 uppercase border border-red-500/20 px-2 py-1 rounded">Reset</button>
                     <button onclick="openSettings()" class="text-lg">⚙️</button>
                 </div>
             </div>
@@ -51,28 +50,26 @@
         </div>
     </header>
 
-    <main id="chatDisplay" class="flex-1 overflow-y-auto p-4 space-y-4 pt-48 pb-32 flex flex-col"></main>
+    <main id="chatDisplay" class="flex-1 overflow-y-auto p-4 space-y-6 pt-48 pb-32 flex flex-col"></main>
 
     <footer class="fixed bottom-0 w-full p-4 pb-10 bg-gradient-to-t from-[#050505] via-[#050505] to-transparent">
-        <div class="max-w-4xl mx-auto flex items-end gap-3 bg-[#151515] p-2 rounded-[24px] border border-[#222] shadow-2xl">
-            <textarea id="userInput" rows="1" placeholder="Напишите сообщение..." 
+        <div class="max-w-4xl mx-auto flex items-end gap-3 bg-[#181818] p-2 rounded-[24px] border border-[#252525] shadow-2xl">
+            <textarea id="userInput" rows="1" placeholder="Спроси что-нибудь..." 
                 class="flex-1 p-3 bg-transparent outline-none resize-none text-base text-white"
                 oninput="this.style.height = '';this.style.height = this.scrollHeight + 'px'"></textarea>
-            <button onclick="handleSend()" id="sendBtn" class="bg-[#10a37f] text-white w-12 h-12 rounded-full flex items-center justify-center active:scale-90 transition shadow-lg">
+            <button onclick="handleSend()" id="sendBtn" class="bg-[#10a37f] text-white w-12 h-12 rounded-full flex items-center justify-center active:scale-90 transition">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="m5 12 7-7 7 7M12 19V5"/></svg>
             </button>
         </div>
     </footer>
 
     <script>
-        // --- СПИСОК МОДЕЛЕЙ ---
         const modelList = [
-            {group: "GPT-5 / o3 (Newest)", models: ["gpt-5", "gpt-5-pro", "gpt-5.2", "gpt-5.2-pro", "gpt-5-nano", "gpt-5-chat-latest", "o3", "o3-mini", "o1"]},
-            {group: "GPT-4 / 4.1", models: ["gpt-4.1", "gpt-4.1-mini", "gpt-4o", "gpt-4o-mini", "gpt-4-turbo"]},
-            {group: "Claude 3.7 / 4.5", models: ["claude-3-7-sonnet", "claude-sonnet-4.6", "claude-sonnet-4.5", "claude-opus-4.6", "claude-opus-4.5", "claude-haiku-4.5"]},
-            {group: "DeepSeek / Qwen", models: ["deepseek-v3.2", "deepseek-v3", "deepseek-r1", "qwen3-max", "qwen3-32b", "qwen-qwq-32b", "qwen-omni-turbo"]},
-            {group: "Google Gemini", models: ["gemini-3.1-pro-preview", "gemini-3-flash-preview", "gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.0-flash"]},
-            {group: "Grok / GLM", models: ["grok-4", "grok-3", "grok-3-mini", "glm-5", "glm-4.7", "glm-4.7-flash"]}
+            {group: "GPT-5 / o3 (2026)", models: ["gpt-5", "gpt-5-pro", "o3", "o3-mini", "o1"]},
+            {group: "GPT-4 & Legacy", models: ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"]},
+            {group: "Anthropic Claude", models: ["claude-3-7-sonnet", "claude-sonnet-4.5", "claude-opus-4.5", "claude-3-5-sonnet"]},
+            {group: "DeepSeek / Qwen", models: ["deepseek-v3", "deepseek-r1", "qwen3-max", "qwen2.5-72b"]},
+            {group: "Gemini / Llama", models: ["gemini-2.0-flash", "gemini-1.5-pro", "llama-3.3-70b", "llama-3.1-405b"]}
         ];
 
         const select = document.getElementById('modelSelect');
@@ -87,7 +84,6 @@
             select.appendChild(optGroup);
         });
 
-        // --- ЛОГИКА ---
         let chatHistory = JSON.parse(localStorage.getItem('ai_hub_history') || '[]');
 
         function init() {
@@ -95,39 +91,28 @@
             if (!key) {
                 document.getElementById('setupOverlay').classList.remove('hidden');
             } else {
-                if (localStorage.getItem('ai_hub_model')) {
-                    select.value = localStorage.getItem('ai_hub_model');
-                }
+                if (localStorage.getItem('ai_hub_model')) select.value = localStorage.getItem('ai_hub_model');
                 chatHistory.forEach(msg => renderMessage(msg.role, msg.content));
             }
         }
 
         function firstTimeSave() {
             const key = document.getElementById('initialApiKey').value.trim();
-            if (key.length > 5) {
+            if (key) {
                 localStorage.setItem('ai_hub_key', key);
-                document.getElementById('setupOverlay').classList.add('hidden');
                 location.reload();
-            } else {
-                alert("Введите валидный ключ");
             }
         }
 
         function openSettings() {
-            const currentKey = localStorage.getItem('ai_hub_key');
-            const newKey = prompt("Введите новый API Key (llmg-...):", currentKey);
-            if (newKey) {
-                localStorage.setItem('ai_hub_key', newKey.trim());
-                location.reload();
-            }
+            const k = prompt("Введите API Key:", localStorage.getItem('ai_hub_key'));
+            if (k) { localStorage.setItem('ai_hub_key', k.trim()); location.reload(); }
         }
 
-        function updateModel() {
-            localStorage.setItem('ai_hub_model', select.value);
-        }
+        function updateModel() { localStorage.setItem('ai_hub_model', select.value); }
 
         function clearHistory() {
-            if (confirm("Удалить все сообщения?")) {
+            if (confirm("Очистить чат?")) {
                 chatHistory = [];
                 localStorage.removeItem('ai_hub_history');
                 document.getElementById('chatDisplay').innerHTML = '';
@@ -138,13 +123,10 @@
             const display = document.getElementById('chatDisplay');
             const div = document.createElement('div');
             div.className = role === 'user' ? 'chat-bubble-user' : 'chat-bubble-ai';
-            
             if (role === 'ai') {
-                div.innerHTML = `<div class="prose prose-invert max-w-full text-gray-200 text-sm leading-relaxed">${marked.parse(text)}</div>`;
+                div.innerHTML = `<div class="prose prose-invert max-w-full text-gray-200 text-sm">${marked.parse(text)}</div>`;
                 div.querySelectorAll('pre code').forEach(c => hljs.highlightElement(c));
-            } else {
-                div.innerText = text;
-            }
+            } else { div.innerText = text; }
             display.appendChild(div);
             display.scrollTo({ top: display.scrollHeight, behavior: 'smooth' });
         }
@@ -152,7 +134,8 @@
         async function handleSend() {
             const input = document.getElementById('userInput');
             const btn = document.getElementById('sendBtn');
-            const status = document.getElementById('statusDot');
+            const dot = document.getElementById('statusDot');
+            const stText = document.getElementById('statusText');
             const key = localStorage.getItem('ai_hub_key');
 
             if (!input.value.trim() || btn.disabled) return;
@@ -165,38 +148,42 @@
             chatHistory.push({ role: "user", content: text });
 
             btn.disabled = true;
-            status.classList.replace('bg-[#10a37f]', 'bg-yellow-500');
+            dot.className = "w-2.5 h-2.5 rounded-full bg-yellow-500 animate-pulse";
+            stText.innerText = "Thinking...";
 
             try {
                 const response = await fetch('https://api.llmapi.ai/v1/chat/completions', {
                     method: 'POST',
+                    mode: 'cors', // Важно для обхода некоторых блокировок
                     headers: { 
                         'Content-Type': 'application/json', 
-                        'Authorization': `Bearer ${key.trim()}`
+                        'Authorization': `Bearer ${key}`
                     },
                     body: JSON.stringify({
                         model: select.value,
-                        messages: chatHistory.slice(-12),
+                        messages: chatHistory.slice(-10),
                         stream: false
                     })
                 });
 
-                const data = await response.json();
-
                 if (!response.ok) {
-                    throw new Error(data.error?.message || `Ошибка API: ${response.status}`);
+                    const err = await response.json();
+                    throw new Error(err.error?.message || `Status ${response.status}`);
                 }
 
+                const data = await response.json();
                 const aiMsg = data.choices[0].message.content;
                 renderMessage('ai', aiMsg);
                 chatHistory.push({ role: "assistant", content: aiMsg });
                 localStorage.setItem('ai_hub_history', JSON.stringify(chatHistory));
-                status.classList.replace('bg-yellow-500', 'bg-[#10a37f]');
+                
+                dot.className = "w-2.5 h-2.5 rounded-full bg-[#10a37f]";
+                stText.innerText = "Ready";
 
             } catch (e) {
-                console.error(e);
-                renderMessage('ai', `❌ **Ошибка:** ${e.message}`);
-                status.classList.replace('bg-yellow-500', 'bg-red-500');
+                renderMessage('ai', `❌ **Ошибка сети:** ${e.message}. \n\n*Если это NetworkError, попробуй залить файл на GitHub Pages — браузеры часто блокируют API-запросы из локальных файлов.*`);
+                dot.className = "w-2.5 h-2.5 rounded-full bg-red-500";
+                stText.innerText = "Error";
             } finally {
                 btn.disabled = false;
             }
