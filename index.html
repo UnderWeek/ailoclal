@@ -12,27 +12,26 @@
     <style>
         :root { --accent: #10a37f; --bg: #050505; }
         body { background-color: var(--bg); color: #e5e5e5; font-family: -apple-system, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
-        .glass-header { background: rgba(5, 5, 5, 0.8); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-bottom: 1px solid #222; }
-        .chat-bubble-user { background: #222; border-radius: 20px 20px 4px 20px; padding: 12px 16px; align-self: flex-end; max-width: 85%; }
-        .chat-bubble-ai { border-bottom: 1px solid #111; padding: 24px 4px; width: 100%; }
+        .glass-header { background: rgba(5, 5, 5, 0.85); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-bottom: 1px solid #222; }
+        .chat-bubble-user { background: #222; border-radius: 20px 20px 4px 20px; padding: 12px 16px; align-self: flex-end; max-width: 85%; margin-left: auto; color: white; }
+        .chat-bubble-ai { border-bottom: 1px solid #111; padding: 24px 8px; width: 100%; }
         pre { background: #000 !important; border-radius: 12px; padding: 14px; margin: 12px 0; border: 1px solid #333; overflow-x: auto; }
         code { font-family: 'SF Mono', monospace; font-size: 0.85em; }
-        select { background: #111; border: 1px solid #333; color: white; border-radius: 12px; padding: 10px; width: 100%; outline: none; appearance: none; }
-        .welcome-screen { backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px); background: rgba(0,0,0,0.8); }
+        select { background: #111; border: 1px solid #333; color: white; border-radius: 12px; padding: 10px; width: 100%; outline: none; appearance: none; font-size: 14px; }
+        .welcome-screen { backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px); background: rgba(0,0,0,0.9); }
         ::-webkit-scrollbar { width: 0; }
+        .loading-dots::after { content: '...'; animation: dots 1.5s steps(5, end) infinite; }
+        @keyframes dots { 0%, 20% { content: '.'; } 40% { content: '..'; } 60% { content: '...'; } }
     </style>
 </head>
 <body class="flex flex-col h-screen overflow-hidden">
 
     <div id="setupOverlay" class="hidden fixed inset-0 z-[100] welcome-screen flex items-center justify-center p-6">
         <div class="bg-[#111] w-full max-w-sm rounded-[32px] p-8 border border-[#333] shadow-2xl">
-            <div class="w-16 h-16 bg-[#10a37f] rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-[#10a37f]/20">
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="white"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-            </div>
             <h2 class="text-3xl font-bold mb-2 tracking-tight">AI HUB <span class="text-[#10a37f]">192</span></h2>
-            <p class="text-gray-400 text-sm mb-8">Для начала работы вставь свой API ключ от <b>llmapi.ai</b>. Мы сохраним его только в твоем браузере.</p>
-            <input type="password" id="initialApiKey" placeholder="sk-..." class="w-full p-4 bg-black rounded-2xl border border-[#333] mb-4 outline-none focus:border-[#10a37f] text-white">
-            <button onclick="firstTimeSave()" class="w-full bg-[#10a37f] p-4 rounded-2xl font-bold text-white active:scale-95 transition">Запустить Хаб</button>
+            <p class="text-gray-400 text-sm mb-8">Введите ваш API ключ (начинается на <code class="text-white">llmg-</code> или <code class="text-white">sk-</code>).</p>
+            <input type="password" id="initialApiKey" placeholder="llmg-..." class="w-full p-4 bg-black rounded-2xl border border-[#333] mb-4 outline-none focus:border-[#10a37f] text-white">
+            <button onclick="firstTimeSave()" class="w-full bg-[#10a37f] p-4 rounded-2xl font-bold text-white active:scale-95 transition shadow-lg shadow-[#10a37f]/20">Начать работу</button>
         </div>
     </div>
 
@@ -40,11 +39,11 @@
         <div class="max-w-4xl mx-auto space-y-3">
             <div class="flex justify-between items-center">
                 <div class="flex items-center gap-2">
-                    <div class="w-2 h-2 rounded-full bg-[#10a37f] animate-pulse"></div>
-                    <span class="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">Live Connection</span>
+                    <div id="statusDot" class="w-2 h-2 rounded-full bg-[#10a37f]"></div>
+                    <span class="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">LLMAPI CLOUD</span>
                 </div>
                 <div class="flex gap-3">
-                    <button onclick="clearHistory()" class="text-[10px] font-bold text-red-500 uppercase border border-red-500/20 px-2 py-1 rounded">Reset</button>
+                    <button onclick="clearHistory()" class="text-[10px] font-bold text-red-500 uppercase border border-red-500/20 px-2 py-1 rounded">Reset Chat</button>
                     <button onclick="openSettings()" class="text-lg">⚙️</button>
                 </div>
             </div>
@@ -52,48 +51,45 @@
         </div>
     </header>
 
-    <main id="chatDisplay" class="flex-1 overflow-y-auto p-4 space-y-8 pt-48 pb-32 flex flex-col"></main>
+    <main id="chatDisplay" class="flex-1 overflow-y-auto p-4 space-y-4 pt-48 pb-32 flex flex-col"></main>
 
     <footer class="fixed bottom-0 w-full p-4 pb-10 bg-gradient-to-t from-[#050505] via-[#050505] to-transparent">
         <div class="max-w-4xl mx-auto flex items-end gap-3 bg-[#151515] p-2 rounded-[24px] border border-[#222] shadow-2xl">
-            <textarea id="userInput" rows="1" placeholder="Спроси что угодно..." 
+            <textarea id="userInput" rows="1" placeholder="Напишите сообщение..." 
                 class="flex-1 p-3 bg-transparent outline-none resize-none text-base text-white"
                 oninput="this.style.height = '';this.style.height = this.scrollHeight + 'px'"></textarea>
-            <button onclick="handleSend()" id="sendBtn" class="bg-white text-black w-12 h-12 rounded-full flex items-center justify-center active:scale-90 transition">
+            <button onclick="handleSend()" id="sendBtn" class="bg-[#10a37f] text-white w-12 h-12 rounded-full flex items-center justify-center active:scale-90 transition shadow-lg">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="m5 12 7-7 7 7M12 19V5"/></svg>
             </button>
         </div>
     </footer>
 
     <script>
-        // --- БАЗА МОДЕЛЕЙ (192 шт) ---
-        const models = [
-            {v: "OpenAI", m: ["gpt-5", "gpt-5-pro", "gpt-5.2", "gpt-5.2-pro", "gpt-5-nano", "gpt-5-mini", "o3-mini", "o1", "gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-5.1-codex", "gpt-3.5-turbo"]},
-            {v: "Anthropic", m: ["claude-3-7-sonnet", "claude-sonnet-4.6", "claude-sonnet-4.5", "claude-opus-4.6", "claude-3-5-sonnet", "claude-3-opus", "claude-3-haiku"]},
-            {v: "Google", m: ["gemini-3-pro", "gemini-3-flash", "gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"]},
-            {v: "DeepSeek", m: ["deepseek-v3.2", "deepseek-v3", "deepseek-r1-distill-llama-70b"]},
-            {v: "Qwen", m: ["qwen3-max", "qwen3-32b", "qwen3-coder-plus", "qwen2.5-72b", "qwen-qwq-32b", "qwen-omni-turbo"]},
-            {v: "Meta/Llama", m: ["llama-4-maverick-17b", "llama-4-scout-17b", "llama-3.3-70b", "llama-3.1-405b"]},
-            {v: "xAI", m: ["grok-4", "grok-3", "grok-3-mini"]},
-            {v: "GLM", m: ["glm-5", "glm-4.7", "glm-4.7-flash"]}
+        // --- СПИСОК МОДЕЛЕЙ ---
+        const modelList = [
+            {group: "GPT-5 / o3 (Newest)", models: ["gpt-5", "gpt-5-pro", "gpt-5.2", "gpt-5.2-pro", "gpt-5-nano", "gpt-5-chat-latest", "o3", "o3-mini", "o1"]},
+            {group: "GPT-4 / 4.1", models: ["gpt-4.1", "gpt-4.1-mini", "gpt-4o", "gpt-4o-mini", "gpt-4-turbo"]},
+            {group: "Claude 3.7 / 4.5", models: ["claude-3-7-sonnet", "claude-sonnet-4.6", "claude-sonnet-4.5", "claude-opus-4.6", "claude-opus-4.5", "claude-haiku-4.5"]},
+            {group: "DeepSeek / Qwen", models: ["deepseek-v3.2", "deepseek-v3", "deepseek-r1", "qwen3-max", "qwen3-32b", "qwen-qwq-32b", "qwen-omni-turbo"]},
+            {group: "Google Gemini", models: ["gemini-3.1-pro-preview", "gemini-3-flash-preview", "gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.0-flash"]},
+            {group: "Grok / GLM", models: ["grok-4", "grok-3", "grok-3-mini", "glm-5", "glm-4.7", "glm-4.7-flash"]}
         ];
 
-        // Заполняем селект
         const select = document.getElementById('modelSelect');
-        models.forEach(vendor => {
-            const group = document.createElement('optgroup');
-            group.label = vendor.v;
-            vendor.m.forEach(m => {
+        modelList.forEach(g => {
+            const optGroup = document.createElement('optgroup');
+            optGroup.label = g.group;
+            g.models.forEach(m => {
                 const opt = document.createElement('option');
-                opt.value = m; opt.innerText = m;
-                group.appendChild(opt);
+                opt.value = m; opt.textContent = m;
+                optGroup.appendChild(opt);
             });
-            select.appendChild(group);
+            select.appendChild(optGroup);
         });
 
-        // --- ЛОГИКА ПРИЛОЖЕНИЯ ---
+        // --- ЛОГИКА ---
         let chatHistory = JSON.parse(localStorage.getItem('ai_hub_history') || '[]');
-        
+
         function init() {
             const key = localStorage.getItem('ai_hub_key');
             if (!key) {
@@ -107,18 +103,23 @@
         }
 
         function firstTimeSave() {
-            const key = document.getElementById('initialApiKey').value;
-            if (key.startsWith('llmg')) {
+            const key = document.getElementById('initialApiKey').value.trim();
+            if (key.length > 5) {
                 localStorage.setItem('ai_hub_key', key);
                 document.getElementById('setupOverlay').classList.add('hidden');
+                location.reload();
             } else {
-                alert("Пожалуйста, введи корректный ключ (начинается с sk-)");
+                alert("Введите валидный ключ");
             }
         }
 
         function openSettings() {
-            const newKey = prompt("Введи новый API Key:", localStorage.getItem('ai_hub_key'));
-            if (newKey) localStorage.setItem('ai_hub_key', newKey);
+            const currentKey = localStorage.getItem('ai_hub_key');
+            const newKey = prompt("Введите новый API Key (llmg-...):", currentKey);
+            if (newKey) {
+                localStorage.setItem('ai_hub_key', newKey.trim());
+                location.reload();
+            }
         }
 
         function updateModel() {
@@ -126,7 +127,7 @@
         }
 
         function clearHistory() {
-            if (confirm("Очистить историю?")) {
+            if (confirm("Удалить все сообщения?")) {
                 chatHistory = [];
                 localStorage.removeItem('ai_hub_history');
                 document.getElementById('chatDisplay').innerHTML = '';
@@ -150,32 +151,54 @@
 
         async function handleSend() {
             const input = document.getElementById('userInput');
+            const btn = document.getElementById('sendBtn');
+            const status = document.getElementById('statusDot');
             const key = localStorage.getItem('ai_hub_key');
-            if (!input.value.trim()) return;
+
+            if (!input.value.trim() || btn.disabled) return;
 
             const text = input.value;
             input.value = '';
             input.style.height = '';
-
+            
             renderMessage('user', text);
             chatHistory.push({ role: "user", content: text });
-            
+
+            btn.disabled = true;
+            status.classList.replace('bg-[#10a37f]', 'bg-yellow-500');
+
             try {
                 const response = await fetch('https://api.llmapi.ai/v1/chat/completions', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
+                    headers: { 
+                        'Content-Type': 'application/json', 
+                        'Authorization': `Bearer ${key.trim()}`
+                    },
                     body: JSON.stringify({
                         model: select.value,
-                        messages: chatHistory.slice(-10)
+                        messages: chatHistory.slice(-12),
+                        stream: false
                     })
                 });
+
                 const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error?.message || `Ошибка API: ${response.status}`);
+                }
+
                 const aiMsg = data.choices[0].message.content;
                 renderMessage('ai', aiMsg);
                 chatHistory.push({ role: "assistant", content: aiMsg });
                 localStorage.setItem('ai_hub_history', JSON.stringify(chatHistory));
+                status.classList.replace('bg-yellow-500', 'bg-[#10a37f]');
+
             } catch (e) {
-                renderMessage('ai', '❌ Ошибка подключения. Проверь ключ.');
+                console.error(e);
+                renderMessage('ai', `❌ **Ошибка:** ${e.message}`);
+                status.classList.replace('bg-yellow-500', 'bg-red-500');
+            } finally {
+                btn.disabled = false;
             }
         }
 
