@@ -108,7 +108,7 @@
 
         function firstTimeSave() {
             const key = document.getElementById('initialApiKey').value;
-            if (key.startsWith('sk-')) {
+            if (key.startsWith('llmg')) {
                 localStorage.setItem('ai_hub_key', key);
                 document.getElementById('setupOverlay').classList.add('hidden');
             } else {
